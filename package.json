@@ -4,7 +4,7 @@
   "private": true,
   "description": "Amprex SaaS development and marketing website",
   "scripts": {
-    "test": "node scratch/test_smtp.js"
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "nodemailer": "^6.9.16"
