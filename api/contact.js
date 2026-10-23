@@ -1,4 +1,6 @@
 const nodemailer = require('nodemailer');
+const { randomUUID } = require('node:crypto');
+const { sendConversion } = require('../lib/meta-conversions');
 
 // Helper to escape HTML to prevent injection
 function escapeHtml(str) {
@@ -39,6 +41,13 @@ module.exports = async function handler(req, res) {
     }
     body = body || {};
 
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return res.status(400).json({ success: false, error: 'Invalid submission.' });
+    }
+    const fields = ['name', 'Name', 'email', 'Email', 'phone', 'Phone', 'Phone number', 'message', 'Message', 'formType', 'form_type'];
+    if (fields.some(key => body[key] !== undefined && (typeof body[key] !== 'string' || body[key].length > 10000))) {
+      return res.status(400).json({ success: false, error: 'Invalid form fields.' });
+    }
     const name = body.name || body.Name || '';
     const email = body.email || body.Email || '';
     const phone = body.phone || body.Phone || body['Phone number'] || '';
@@ -51,11 +60,11 @@ module.exports = async function handler(req, res) {
     // Honeypot spam protection: if bot filled hidden field, reject silently
     if (website) {
       console.warn('Spam honeypot triggered. Silently discarding.');
-      return res.status(200).json({ success: true, message: 'Message received.' });
+      return res.status(200).json({ success: true, submitted: false, message: 'Message received.' });
     }
 
     // Basic validation
-    if (!email || !email.includes('@')) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.length > 254) {
       return res.status(400).json({ success: false, error: 'A valid email address is required.' });
     }
 
@@ -63,7 +72,15 @@ module.exports = async function handler(req, res) {
     const cleanName = escapeHtml((name || 'Website Visitor').trim());
     const cleanPhone = escapeHtml((phone || 'Not provided').trim());
     const cleanMessage = escapeHtml((message || 'No message provided').trim());
-    const isNewsletter = formType === 'newsletter' || (!message && !phone);
+    if (formType && !['contact', 'newsletter'].includes(formType)) {
+      return res.status(400).json({ success: false, error: 'Unknown form type.' });
+    }
+    const isNewsletter = formType === 'newsletter';
+    if (!isNewsletter && (!name.trim() || !phone.trim())) {
+      return res.status(400).json({ success: false, error: 'Please provide your name and phone number.' });
+    }
+    const eventId = typeof body.eventId === 'string' && /^[A-Za-z0-9_-]{10,100}$/.test(body.eventId)
+      ? body.eventId : randomUUID();
 
     console.log(`[Form Submission] Type: ${isNewsletter ? 'Newsletter' : 'Contact'}, From: ${cleanName} <${cleanEmail}>`);
 
@@ -100,9 +117,6 @@ module.exports = async function handler(req, res) {
             auth: {
               user: smtpUser,
               pass: smtpPass
-            },
-            tls: {
-              rejectUnauthorized: false
             }
           };
 
@@ -151,15 +165,22 @@ module.exports = async function handler(req, res) {
       await transporter.sendMail({
         from: `"Amprex Notifications" <${smtpUser}>`,
         to: recipientEmail,
-        replyTo: cleanEmail,
+        replyTo: email.trim(),
         subject: mailSubject,
         html: htmlContent,
         text: `New ${isNewsletter ? 'Subscription' : 'Inquiry'}\n\nName: ${cleanName}\nEmail: ${cleanEmail}\nPhone: ${cleanPhone}\n\nMessage:\n${cleanMessage}`
       });
 
       console.log(`[SMTP Success] Email delivered to ${recipientEmail}`);
+      await sendConversion(req, {
+        email: email.trim(), phone, eventId,
+        formType: isNewsletter ? 'newsletter' : 'contact',
+        metadata: body.metadata && typeof body.metadata === 'object' ? body.metadata : {}
+      });
       return res.status(200).json({
         success: true,
+        submitted: true,
+        eventId,
         message: isNewsletter
           ? 'Thank you for subscribing! You are now on the list.'
           : 'Thank you! Your message has been received. Our team will reach out shortly.'
@@ -167,12 +188,9 @@ module.exports = async function handler(req, res) {
     } else {
       // SMTP not yet configured in environment variables
       console.warn('[SMTP Notice] SMTP environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS) are not set. The inquiry has been logged above.');
-      return res.status(200).json({
-        success: true,
-        warning: 'SMTP_CREDENTIALS_PENDING',
-        message: isNewsletter
-          ? 'Thank you for subscribing!'
-          : 'Thank you! Your message has been received. We will get back to you shortly.'
+      return res.status(503).json({
+        success: false,
+        error: 'Message delivery is temporarily unavailable. Please email hello.amprex@gmail.com.'
       });
     }
   } catch (error) {

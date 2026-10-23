@@ -1,230 +1,88 @@
-/**
- * Amprex Form Handler
- * Handles Contact Form and Newsletter Submissions with AJAX to /api/contact
- */
-(function() {
-  function getApiEndpoint() {
-    return '/api/contact';
+/* Delegated capture handler survives Framer remounts without duplicate submissions. */
+(function () {
+  if (window.amprexFormsReady) return;
+  window.amprexFormsReady = true;
+  var pending = new WeakSet();
+  function value(form, selector) {
+    var field = form.querySelector(selector);
+    return field ? field.value.trim() : '';
   }
-
-  // --- CONTACT FORM HANDLER ---
-  function initContactForm() {
-    var forms = document.querySelectorAll('form.framer-1hifdkt, #amprex-contact-form');
-    if (!forms || forms.length === 0) {
-      // Fallback: search for any form that contains a Message textarea
-      var textareas = document.querySelectorAll('textarea[name="Message"], textarea[name="message"]');
-      var list = [];
-      textareas.forEach(function(ta) {
-        if (ta.form) list.push(ta.form);
-      });
-      forms = list;
+  function cookie(name) {
+    var match = document.cookie.split('; ').find(function (part) { return part.startsWith(name + '='); });
+    return match ? match.slice(name.length + 1) : '';
+  }
+  function status(form, message, error) {
+    var box = form.querySelector('.amprex-form-status');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'amprex-form-status';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      box.style.cssText = 'padding:14px 18px;border-radius:10px;font:14px/1.5 Inter,sans-serif;margin-top:16px;width:100%;box-sizing:border-box;';
+      form.appendChild(box);
     }
-
-    forms.forEach(function(form) {
-      if (form.dataset.formAttached) return;
-      form.dataset.formAttached = 'true';
-
-      var submitBtn = form.querySelector('button[type="submit"]');
-      var statusBox = form.querySelector('.amprex-form-status');
-
-      if (!statusBox) {
-        statusBox = document.createElement('div');
-        statusBox.className = 'amprex-form-status';
-        statusBox.style.cssText = 'display:none;padding:14px 18px;border-radius:10px;font-size:14px;line-height:1.5;margin-top:16px;text-align:center;font-weight:600;font-family:Inter,sans-serif;width:100%;box-sizing:border-box;';
-        form.appendChild(statusBox);
+    box.style.color = error ? '#ff8080' : '#f3ffc9';
+    box.style.background = error ? 'rgba(255,80,80,.15)' : 'rgba(243,255,201,.15)';
+    box.textContent = message;
+  }
+  document.addEventListener('submit', async function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    var contact = !!form.querySelector('textarea[name="Message"], textarea[name="message"]');
+    var newsletter = !contact && form.matches('form.framer-cx9ye5, footer form');
+    if (!contact && !newsletter) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (pending.has(form)) return;
+    if (!form.reportValidity()) return;
+    var email = value(form, '[name="Email"], [name="email"], input[type="email"]');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      status(form, 'Please enter a valid email address.', true);
+      return;
+    }
+    var formType = contact ? 'contact' : 'newsletter';
+    var eventId = window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2);
+    var body = {
+      name: value(form, '[name="Name"], [name="name"]'),
+      email: email,
+      phone: value(form, '[name="Phone number"], [name="Phone"], [name="phone"]'),
+      message: value(form, 'textarea[name="Message"], textarea[name="message"]'),
+      website: value(form, '[name="website"]'),
+      formType: formType,
+      eventId: eventId,
+      metadata: { sourceUrl: location.origin + location.pathname, fbp: cookie('_fbp'), fbc: cookie('_fbc') }
+    };
+    var button = form.querySelector('button[type="submit"]');
+    var label = button && (button.querySelector('.framer-text') || button);
+    var original = label ? label.textContent : '';
+    pending.add(form);
+    if (button) button.disabled = true;
+    if (label) label.textContent = 'Sending…';
+    status(form, 'Sending…', false);
+    try {
+      var response = await fetch('/api/contact', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      var result = await response.json();
+      if (!response.ok || !result.success || result.warning === 'SMTP_CREDENTIALS_PENDING') {
+        status(form, result.error || 'Could not send. Please try again or email hello.amprex@gmail.com.', true);
+        return;
       }
-
-      form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        var nameInput = form.querySelector('[name="Name"], [name="name"]');
-        var emailInput = form.querySelector('[name="Email"], [name="email"]');
-        var phoneInput = form.querySelector('[name="Phone number"], [name="Phone"], [name="phone"]');
-        var messageInput = form.querySelector('textarea[name="Message"], textarea[name="message"]');
-        var honeypotInput = form.querySelector('[name="website"]');
-
-        var name = nameInput ? nameInput.value.trim() : '';
-        var email = emailInput ? emailInput.value.trim() : '';
-        var phone = phoneInput ? phoneInput.value.trim() : '';
-        var message = messageInput ? messageInput.value.trim() : '';
-        var honeypot = honeypotInput ? honeypotInput.value.trim() : '';
-
-        if (!email || !email.includes('@')) {
-          showStatus(statusBox, 'Please provide a valid email address.', 'error');
-          return;
-        }
-
-        var btnTextEl = submitBtn ? (submitBtn.querySelector('.framer-text') || submitBtn) : null;
-        var originalBtnText = btnTextEl ? btnTextEl.innerText : 'Send message';
-
-        if (submitBtn) {
-          submitBtn.disabled = true;
-          if (btnTextEl) btnTextEl.innerText = 'Sending...';
-          submitBtn.style.opacity = '0.7';
-        }
-
-        showStatus(statusBox, 'Sending your inquiry...', 'info');
-
-        try {
-          var res = await fetch(getApiEndpoint(), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: name,
-              email: email,
-              phone: phone,
-              message: message,
-              website: honeypot,
-              formType: 'contact'
-            })
-          });
-
-          var data = await res.json().catch(function() { return {}; });
-
-          if (res.ok && data.success) {
-            try {
-              if (typeof window.fbq === 'function') {
-                window.fbq('track', 'Lead', {
-                  content_name: 'Contact Form Submission',
-                  form_type: 'contact'
-                });
-              }
-            } catch (pixelErr) {
-              console.warn('Meta Pixel tracking error:', pixelErr);
-            }
-
-            showStatus(statusBox, '✓ ' + (data.message || 'Thank you! Your message has been received. Our team will reach out shortly.'), 'success');
-            form.reset();
-            if (btnTextEl) btnTextEl.innerText = 'Sent! ✓';
-            setTimeout(function() {
-              if (btnTextEl) btnTextEl.innerText = originalBtnText;
-              if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.style.opacity = '1';
-              }
-            }, 4000);
-          } else {
-            showStatus(statusBox, '⚠ ' + (data.error || 'Failed to send message. Please try again or reach out on Instagram / LinkedIn.'), 'error');
-            if (btnTextEl) btnTextEl.innerText = originalBtnText;
-            if (submitBtn) {
-              submitBtn.disabled = false;
-              submitBtn.style.opacity = '1';
-            }
-          }
-        } catch (err) {
-          console.error('Contact form submission error:', err);
-          showStatus(statusBox, '⚠ Network error. Please verify your connection or try again shortly.', 'error');
-          if (btnTextEl) btnTextEl.innerText = originalBtnText;
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.style.opacity = '1';
-          }
-        }
-      });
-    });
-  }
-
-  function showStatus(el, msg, type) {
-    if (!el) return;
-    el.style.display = 'block';
-    el.innerText = msg;
-    if (type === 'success') {
-      el.style.background = 'rgba(243, 255, 201, 0.15)';
-      el.style.border = '1px solid rgba(243, 255, 201, 0.4)';
-      el.style.color = 'rgb(243, 255, 201)';
-    } else if (type === 'error') {
-      el.style.background = 'rgba(255, 80, 80, 0.15)';
-      el.style.border = '1px solid rgba(255, 80, 80, 0.4)';
-      el.style.color = '#ff8080';
-    } else {
-      el.style.background = 'rgba(243, 255, 201, 0.05)';
-      el.style.border = '1px solid rgba(243, 255, 201, 0.2)';
-      el.style.color = 'rgb(169, 173, 155)';
+      // Honeypot requests receive a neutral response, but never count as conversions.
+      if (result.submitted !== false && !body.website && window.amprexTracking) {
+        try { window.amprexTracking.conversion(formType, result.eventId || eventId); }
+        catch (_) { console.warn('Conversion tracking unavailable; enquiry was delivered.'); }
+      }
+      form.reset();
+      status(form, result.message || (contact ? 'Thank you! Your message has been received.' : 'Thank you for subscribing!'), false);
+    } catch (_) {
+      status(form, 'Could not confirm delivery. Please try again or email hello.amprex@gmail.com.', true);
+    } finally {
+      pending.delete(form);
+      if (button) button.disabled = false;
+      if (label) label.textContent = original;
     }
-  }
-
-  // --- FOOTER NEWSLETTER FORMS ---
-  function initFooterForms() {
-    var footerForms = document.querySelectorAll('form.framer-cx9ye5, footer form');
-    footerForms.forEach(function(form) {
-      if (form.dataset.newsletterAttached) return;
-      form.dataset.newsletterAttached = 'true';
-
-      form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        var emailInput = form.querySelector('input[type="email"], input[name="Email"], input[name="email"]');
-        var submitBtn = form.querySelector('button[type="submit"]');
-        var btnTextEl = submitBtn ? (submitBtn.querySelector('.framer-text') || submitBtn) : null;
-        var email = emailInput ? emailInput.value.trim() : '';
-
-        if (!email || !email.includes('@')) {
-          alert('Please enter a valid email address.');
-          return;
-        }
-
-        var origBtnText = btnTextEl ? btnTextEl.innerText : 'Subscribe';
-        if (submitBtn) {
-          submitBtn.disabled = true;
-          submitBtn.style.opacity = '0.7';
-          if (btnTextEl) btnTextEl.innerText = '...';
-        }
-
-        try {
-          var res = await fetch(getApiEndpoint(), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: email,
-              formType: 'newsletter'
-            })
-          });
-
-          var data = await res.json().catch(function() { return {}; });
-          if (res.ok && data.success) {
-            try {
-              if (typeof window.fbq === 'function') {
-                window.fbq('track', 'Lead', {
-                  content_name: 'Newsletter Subscription',
-                  form_type: 'newsletter'
-                });
-              }
-            } catch (pixelErr) {
-              console.warn('Meta Pixel tracking error:', pixelErr);
-            }
-            if (emailInput) emailInput.value = '';
-            if (btnTextEl) {
-              btnTextEl.innerText = 'Subscribed! ✓';
-              setTimeout(function() {
-                btnTextEl.innerText = origBtnText;
-                submitBtn.disabled = false;
-                submitBtn.style.opacity = '1';
-              }, 4000);
-            } else {
-              alert('Thank you for subscribing to Amprex updates!');
-            }
-          } else {
-            alert(data.error || 'Could not subscribe at this time. Please try again.');
-            if (submitBtn) {
-              submitBtn.disabled = false;
-              submitBtn.style.opacity = '1';
-              if (btnTextEl) btnTextEl.innerText = origBtnText;
-            }
-          }
-        } catch (err) {
-          console.error('Newsletter submission error:', err);
-          alert('Subscription error. Please check your connection and try again.');
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.style.opacity = '1';
-            if (btnTextEl) btnTextEl.innerText = origBtnText;
-          }
-        }
-      });
-    });
-  }
+  }, true);
 
   // --- NAVBAR ACTIVE HIGHLIGHT ---
   function updateActiveNavLink() {
@@ -261,27 +119,9 @@
     });
   }
 
-  function initAll() {
-    initContactForm();
-    initFooterForms();
-    updateActiveNavLink();
-  }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initAll);
-  } else {
-    initAll();
-  }
-
-  // Support dynamic Framer DOM mounts
-  var observer = new MutationObserver(function() {
-    initAll();
-  });
-  if (document.body) {
-    observer.observe(document.body, { childList: true, subtree: true });
-  } else {
-    document.addEventListener('DOMContentLoaded', function() {
-      observer.observe(document.body, { childList: true, subtree: true });
-    });
-  }
+  function initAll() { updateActiveNavLink(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initAll);
+  else initAll();
+  new MutationObserver(initAll).observe(document.body, { childList: true, subtree: true });
 })();
