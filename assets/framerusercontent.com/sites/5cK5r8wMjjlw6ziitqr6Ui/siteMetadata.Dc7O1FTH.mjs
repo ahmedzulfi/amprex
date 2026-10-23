@@ -1,0 +1,2 @@
+import{t as e}from"./rolldown-runtime.Dh6celcD.mjs";function t(e,t){return{description:`Amprex helps ambitious teams build SaaS products and create the marketing systems that drive adoption, pipeline, and growth.`,favicon:`https://framerusercontent.com/assets/53owTL5sjZZmDmsy9sqUJkaIuc.png`,robots:`max-image-preview:large`,title:`Amprex — SaaS development + marketing`}}var n=e((()=>{}));export{t as n,n as t};
+//# sourceMappingURL=siteMetadata.Dc7O1FTH.mjs.map

@@ -1,0 +1,261 @@
+/* Testimonials Section Styling for Amprex / b2bizz */
+.amprex-testimonials-section {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 100px 24px;
+  box-sizing: border-box;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: rgb(243, 255, 201);
+  position: relative;
+  z-index: 10;
+}
+
+.amprex-testimonials-header {
+  text-align: center;
+  max-width: 760px;
+  margin: 0 auto 56px auto;
+}
+
+.amprex-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: rgba(243, 255, 201, 0.08);
+  border: 1px solid rgba(243, 255, 201, 0.2);
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(243, 255, 201);
+  margin-bottom: 20px;
+}
+
+.amprex-badge-dot {
+  width: 6px;
+  height: 6px;
+  background-color: rgb(243, 255, 201);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgb(243, 255, 201);
+}
+
+.amprex-testimonials-title {
+  font-family: "Inter Display", "Inter", sans-serif;
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 700;
+  line-height: 1.15;
+  color: rgb(243, 255, 201);
+  margin: 0 0 18px 0;
+  letter-spacing: -0.02em;
+}
+
+.amprex-testimonials-subtitle {
+  font-size: clamp(15px, 2vw, 17px);
+  color: rgb(169, 173, 155);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Grid Layout */
+.amprex-testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 28px;
+  align-items: stretch;
+}
+
+@media (max-width: 860px) {
+  .amprex-testimonials-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .amprex-testimonials-section {
+    padding: 70px 16px;
+  }
+}
+
+/* Card Styling */
+.amprex-testimonial-card {
+  background: rgba(26, 32, 29, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(88, 94, 68, 0.35);
+  border-radius: 20px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.amprex-testimonial-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(243, 255, 201, 0.25), transparent);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.amprex-testimonial-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(243, 255, 201, 0.3);
+  background: rgba(30, 38, 34, 0.85);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+}
+
+.amprex-testimonial-card:hover::before {
+  opacity: 1;
+}
+
+/* Featured / Full-width Card on Desktop if needed */
+.amprex-testimonial-card.featured-card {
+  grid-column: span 1;
+}
+
+/* Top: Author header */
+.amprex-card-author {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.amprex-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.amprex-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(243, 255, 201, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: block;
+  background: #1e2421;
+}
+
+.amprex-linkedin-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  background: #0077b5;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+.amprex-linkedin-badge svg {
+  width: 12px;
+  height: 12px;
+  fill: #ffffff;
+}
+
+.amprex-author-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.amprex-author-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.amprex-author-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.amprex-verified-icon {
+  display: inline-flex;
+  align-items: center;
+  color: rgb(243, 255, 201);
+}
+
+.amprex-verified-icon svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+}
+
+.amprex-author-role {
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgb(169, 173, 155);
+  margin: 0 0 6px 0;
+}
+
+.amprex-context-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(243, 255, 201, 0.85);
+  background: rgba(243, 255, 201, 0.08);
+  border: 1px solid rgba(243, 255, 201, 0.15);
+  padding: 3px 9px;
+  border-radius: 6px;
+}
+
+/* Rating Stars */
+.amprex-stars {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  color: rgb(243, 255, 201);
+  font-size: 14px;
+}
+
+/* Quote Text */
+.amprex-quote-text {
+  font-size: 15px;
+  line-height: 1.7;
+  color: rgba(243, 255, 201, 0.92);
+  margin: 0 0 20px 0;
+  font-weight: 400;
+  white-space: pre-line;
+}
+
+/* Footer Tag */
+.amprex-card-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid rgba(88, 94, 68, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.amprex-recommendation-source {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(169, 173, 155);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.amprex-recommendation-source svg {
+  width: 14px;
+  height: 14px;
+  fill: #0a66c2;
+}

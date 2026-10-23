@@ -1,0 +1,12 @@
+{
+  "name": "amprex-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Amprex SaaS development and marketing website",
+  "scripts": {
+    "test": "node scratch/test_smtp.js"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.16"
+  }
+}
