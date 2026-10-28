@@ -40,7 +40,19 @@ Browser and server conversions share the same event name and ID for deduplicatio
 
 After deployment, use Events Manager Test Events to verify one contact `Lead`, a separate newsletter event, and browser/server deduplication if CAPI is enabled. Local simulations do not prove delivery to Gmail or Meta in production.
 
-## Verification
+## Google Analytics 4
+
+AMPREX Website uses measurement ID `G-3GP7PB10WQ` (web stream `16222242465`) owned by `hello.amprex@gmail.com`. All 28 exported pages load `assets/ga4.js` through their existing shared tracking script.
+
+Google Analytics loads only after the visitor chooses **Allow analytics**. **Reject analytics** keeps it disabled. The fixed **Analytics preferences** button allows withdrawal; choices expire after 180 days. These controls apply to GA4 only; the existing Meta integration is separate. Google advertising consent stays denied, Google Signals and ad personalization are disabled, and optional account data sharing is disabled.
+
+One automatic `page_view` records each full document load. Stream history-based page views, automatic form interactions and site search are disabled to avoid duplicate views and counting attempted submissions as delivered leads. Scrolls, outbound links, video engagement and file downloads remain enabled. Successfully delivered contact forms send `generate_lead`; newsletter delivery sends `newsletter_signup`, each deduplicated by submission ID. No names, emails, phone numbers, messages or submission IDs are sent to GA4. Page URLs keep only campaign UTM parameters; referrers omit queries and fragments. Never put personal data in UTM values or page paths.
+
+After merging and deployment, accept analytics on the public site and check GA4 **Realtime** for `page_view`. Test one successful contact submission and verify `generate_lead`; failed submissions must not produce it. Use **Reports > Acquisition > Traffic acquisition** for session source/medium and **Demographic details** for country. Reports begin after deployment and consent; historical visits are not backfilled. Tag blockers and denied consent can reduce measured visits.
+
+Suggested campaign URL: `https://www.amprexhq.com/?utm_source=instagram&utm_medium=paid_social&utm_campaign=amprex_awareness&utm_content=ad_1`. Use distinct `utm_content` for each creative and the correct platform/source in each link.
+
+## Local verification
 
 Install dependencies with `npm ci`, then run `npm test` (or `node --test tests/*.test.js`). Tests cover delivery gating, event IDs, initialization guards, newsletter separation and exported-page links.
 
